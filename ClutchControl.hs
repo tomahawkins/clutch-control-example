@@ -47,7 +47,8 @@ clutchControl = do
       disengaging <== true
       startTimer supplyValveTimer
 
-    ref disengaging &&. (timerDone supplyValveTimer ||. supplyValveClosed) ==> do
+    ref disengaging &&. timerDone supplyValveTimer &&. supplyValveClosed ==> do    -- Bug in implementation.
+--  ref disengaging &&. (timerDone supplyValveTimer ||. supplyValveClosed) ==> do  -- Correct implementation.
       disengaging <== false
       disengaged  <== true
 
@@ -67,20 +68,24 @@ clutchControlSpecification = do
   if_ (not_ $ ref disengaged)
     (updateTimer disengagementTimer)
 
-  assert "states_one_hot" 1 $      (ref engaged) &&. not_ (ref disengaging) &&. not_ (ref disengaged)
-                          ||. not_ (ref engaged) &&.      (ref disengaging) &&. not_ (ref disengaged)
-                          ||. not_ (ref engaged) &&. not_ (ref disengaging) &&.      (ref disengaged)
+-- A lemma that states variables are one hot.  Uncomment
+--assert "states_one_hot" 1 $      (ref engaged) &&. not_ (ref disengaging) &&. not_ (ref disengaged)
+--                        ||. not_ (ref engaged) &&.      (ref disengaging) &&. not_ (ref disengaged)
+--                        ||. not_ (ref engaged) &&. not_ (ref disengaging) &&.      (ref disengaged)
 
-  assertTimerProperties supplyValveTimer 
-  assertTimerProperties disengagementTimer
+-- Lemmas that state timer value stay within a range and value are 0 if timer is inactive.
+--assertTimerProperties supplyValveTimer 
+--assertTimerProperties disengagementTimer
 
-  assert "invariant" 1 $ ref engaged     &&. not_ (timerActive disengagementTimer)
-                     ||. (   ref disengaging
-                         &&. timerActive disengagementTimer
-                         &&. timerActive supplyValveTimer
-                         &&. timerValue disengagementTimer ==. timerValue supplyValveTimer
-                         )
-                     ||. ref disengaged
+-- A Lemma to aid verification of final requirement.  A disjunctive invariant that covers
+-- the 'engaged', 'disengaging', and 'disengaged' states.
+--assert "invariant" 1 $ ref engaged     &&. not_ (timerActive disengagementTimer)
+--                   ||. (   ref disengaging
+--                       &&. timerActive disengagementTimer
+--                       &&. timerActive supplyValveTimer
+--                       &&. timerValue disengagementTimer ==. timerValue supplyValveTimer
+--                       )
+--                   ||. ref disengaged
 
   -- Make sure the timer is never allowed to complete.
   assert "disengaged_within_500ms" 1 $ not_ $ timerDone disengagementTimer
